@@ -1,0 +1,15 @@
+# Secret credentials — NEVER commit this file
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Mac
+.DS_Store
