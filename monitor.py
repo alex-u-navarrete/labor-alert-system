@@ -38,7 +38,7 @@ TWILIO_TOKEN      = require_env("TWILIO_AUTH_TOKEN")
 TWILIO_FROM       = require_env("TWILIO_FROM_NUMBER")
 ALERT_PHONES      = [p.strip() for p in require_env("ALERT_PHONE_NUMBERS").split(",")]
 
-TZ_NAME           = os.environ.get("TIMEZONE", "America/Chicago")
+TZ_NAME           = os.environ.get("TIMEZONE", "America/Los_Angeles")
 LABOR_THRESHOLD   = float(os.environ.get("LABOR_THRESHOLD_PCT", "33")) / 100
 ESCALATION_HOURS  = float(os.environ.get("ESCALATION_HOURS", "2"))
 
