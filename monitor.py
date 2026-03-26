@@ -19,7 +19,7 @@ from datetime import datetime, timezone, timedelta
 
 import pytz
 from apscheduler.schedulers.blocking import BlockingScheduler
-from square import Square as SquareClient
+from square.client import Client as SquareClient
 from twilio.rest import Client as TwilioClient
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -67,7 +67,7 @@ DAY_NAMES = {
 }
 
 # ── API clients ───────────────────────────────────────────────────────────────
-sq     = SquareClient(token=SQUARE_TOKEN)
+sq     = SquareClient(access_token=SQUARE_TOKEN, environment="production")
 twilio = TwilioClient(TWILIO_SID, TWILIO_TOKEN)
 
 # ── Team member name cache (id -> "First Last") ───────────────────────────────
