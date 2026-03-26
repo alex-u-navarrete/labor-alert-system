@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 
 import pytz
 from apscheduler.schedulers.blocking import BlockingScheduler
-from square.client import Client as SquareClient
+from square import Square as SquareClient
 from twilio.rest import Client as TwilioClient
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -58,7 +58,7 @@ BUSINESS_HOURS: dict[int, tuple[str, str]] = {
 }
 
 # ── API clients ───────────────────────────────────────────────────────────────
-square = SquareClient(access_token=SQUARE_TOKEN, environment="production")
+square = SquareClient(token=SQUARE_TOKEN)
 twilio = TwilioClient(TWILIO_SID, TWILIO_TOKEN)
 
 # ── Breach state (in-memory; resets on restart, which is fine) ────────────────
