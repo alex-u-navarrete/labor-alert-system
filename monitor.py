@@ -21,6 +21,8 @@ import pytz
 from apscheduler.schedulers.blocking import BlockingScheduler
 from square.client import Client as SquareClient
 from twilio.rest import Client as TwilioClient
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -49,6 +51,13 @@ TZ_NAME           = os.environ.get("TIMEZONE", "America/Los_Angeles")
 LABOR_THRESHOLD   = float(os.environ.get("LABOR_THRESHOLD_PCT", "33")) / 100
 ESCALATION_HOURS  = float(os.environ.get("ESCALATION_HOURS", "2"))
 
+# ── Optional SendGrid email config (all three must be set to enable email) ─────
+_SG_KEY       = os.environ.get("SENDGRID_API_KEY", "").strip()
+_EMAIL_FROM   = os.environ.get("ALERT_EMAIL_FROM", "").strip()
+_EMAIL_TO_RAW = os.environ.get("ALERT_EMAIL_TO", "").strip()
+ALERT_EMAILS  = [e.strip() for e in _EMAIL_TO_RAW.split(",") if e.strip()]
+SENDGRID_ENABLED = bool(_SG_KEY and _EMAIL_FROM and ALERT_EMAILS)
+
 TZ = pytz.timezone(TZ_NAME)
 
 # Python weekday(): 0=Mon 1=Tue 2=Wed 3=Thu 4=Fri 5=Sat 6=Sun
@@ -69,6 +78,7 @@ DAY_NAMES = {
 # ── API clients ───────────────────────────────────────────────────────────────
 sq     = SquareClient(access_token=SQUARE_TOKEN, environment="production")
 twilio = TwilioClient(TWILIO_SID, TWILIO_TOKEN)
+sg     = SendGridAPIClient(_SG_KEY) if SENDGRID_ENABLED else None
 
 # ── Team member name cache (id -> "First Last") ───────────────────────────────
 _team_cache: dict = {}
@@ -440,6 +450,32 @@ def send_sms(message: str) -> None:
             log.error("Failed SMS to %s: %s", phone, exc)
 
 
+# ── Email sender ───────────────────────────────────────────────────────────────
+def send_email(subject: str, body: str) -> None:
+    """Send plain-text email via SendGrid. No-op if SendGrid is not configured."""
+    if not SENDGRID_ENABLED:
+        return
+    for address in ALERT_EMAILS:
+        try:
+            msg = Mail(
+                from_email=_EMAIL_FROM,
+                to_emails=address,
+                subject=subject,
+                plain_text_content=body,
+            )
+            sg.send(msg)
+            log.info("Email sent to %s", address)
+        except Exception as exc:
+            log.error("Failed email to %s: %s", address, exc)
+
+
+# ── Alert dispatcher ──────────────────────────────────────────────────────────
+def send_alert(subject: str, sms_body: str, email_body: str | None = None) -> None:
+    """Fire SMS and (if configured) email. email_body falls back to sms_body."""
+    send_sms(sms_body)
+    send_email(subject, email_body if email_body is not None else sms_body)
+
+
 # ── Weekly insight ────────────────────────────────────────────────────────────
 def weekly_insight() -> None:
     """Runs every Monday at 8:30 AM. Analyzes 8 weeks of history by weekday."""
@@ -574,7 +610,10 @@ def weekly_insight() -> None:
                 f"vs 2 weeks ago ({earlier_avg:.1f}% -> {recent_avg:.1f}%).",
             ]
 
-    send_sms("\n".join(lines))
+    send_alert(
+        subject="La Flor Blanca — Weekly Labor Insight",
+        sms_body="\n".join(lines),
+    )
     log.info("Weekly insight sent.")
 
 
@@ -635,8 +674,12 @@ def check_labor() -> None:
 
         if target_stage:
             messages = build_alerts(labor_pct, labor_cents, sales_cents, shift_details, target_stage)
-            for msg in messages:
-                send_sms(msg)
+            subjects = [
+                f"La Flor Blanca — Labor Alert (Stage {target_stage})",
+                "La Flor Blanca — Sales Pace",
+            ]
+            for msg, subj in zip(messages, subjects):
+                send_alert(subj, msg)
             state["alert_stage"] = target_stage
             log.info("Stage %d alerts sent (%.1fh into breach).", target_stage, breach_hours)
         else:
@@ -663,6 +706,10 @@ def main() -> None:
     log.info("Threshold    : %.0f%%", LABOR_THRESHOLD * 100)
     log.info("Escalation   : every %.0f hours while in breach (max 3 bursts)", ESCALATION_HOURS)
     log.info("Alert phones : %s", ", ".join(ALERT_PHONES))
+    if SENDGRID_ENABLED:
+        log.info("Alert emails : %s", ", ".join(ALERT_EMAILS))
+    else:
+        log.info("Alert emails : disabled (set SENDGRID_API_KEY, ALERT_EMAIL_FROM, ALERT_EMAIL_TO to enable)")
     log.info("=" * 60)
 
     scheduler = BlockingScheduler(timezone=TZ)
