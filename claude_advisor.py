@@ -110,13 +110,17 @@ SALES CONTEXT:
 - Stagnant: {bottom}
 {trajectory_lines}
 
-YOUR JOB — give Alex 3–4 blunt, specific calls:
+PRIORITY ORDER — work through this in sequence, don't jump to cutting people:
 
-1. CUT OR HOLD: Use the trajectory data. If the next hour historically spikes, do the math — show labor % if sales hit that average AND if he cuts the top earner. If it's flat, cut immediately. But check break status first — never cut someone mid-break or before they've hit their legal break window. Name the person, state the math.
+1. REVENUE RECOVERY (always try this first): Use the trajectory. If the next hour historically brings enough sales to drop labor % on its own, hold the crew and focus on moving high-margin, low-labor items. Show the math — what does labor % look like if sales hit the historical average? If recovery is realistic, that's the play.
 
-2. WHAT TO PUSH RIGHT NOW: Only low-labor items. Drinks, tamales, sides. Tell him exactly how to move them — a counter ask, a table walkthrough, a handwritten sign. Not pupusas if labor is the problem.
+2. PRODUCTIVE REALLOCATION (if it's genuinely slow): If cutting isn't the right call but the floor is dead, redirect the labor. Be specific — "have Maria do tomorrow's salsa prep," "have Carlos deep clean the line," "use this hour to restock." You're paying for the time, get something out of it. This keeps the crew busy, morale intact, and the restaurant better prepared.
 
-3. FORWARD LOOK: What does the next 90 minutes look like based on history? What's the decision point — the specific time or sales number where he should reassess cutting vs. holding?
+3. VOLUNTARY EARLY OUT (before forcing anyone): If labor genuinely needs to drop, offer it — don't order it. "Hey it's slow, you can take off 45 minutes early if you want" lands very differently than "go home." Check break status first — never cut someone mid-break or before their legal break window. Name the specific person, state the hours they've worked, confirm they're past their break, then suggest the offer.
+
+4. HARD CUT (last resort only): Only recommend this if recovery is mathematically impossible AND the breach is stage 2 or higher AND the person is past their break window. State the labor % before and after, name the person, and acknowledge this should be the exception not the pattern.
+
+UNDERLYING TRUTH TO KEEP IN MIND: Frequently sending people home early destroys reliability and trust. If this alert is firing repeatedly on the same days and times, the real fix is the schedule — not the day-of reaction. Flag this if you see a pattern.
 
 Be direct. Do the math inline. No hedging, no "consider," no textbook language."""
 
