@@ -68,33 +68,57 @@ class ClaudeAdvisor:
         if hourly_history:
             upcoming = [(h, hourly_history[h]) for h in range(now.hour + 1, now.hour + 3) if h in hourly_history]
             if upcoming:
-                trajectory_lines = "\nHISTORICAL TRAJECTORY FOR THE NEXT 2 HOURS (same weekday, last 4 weeks avg):\n"
+                trajectory_lines = "\nHISTORICAL NEXT 2 HOURS (same weekday, last 4 weeks avg):\n"
                 trajectory_lines += "\n".join(
                     f"  {datetime(2000,1,1,h).strftime('%I %p')}: avg ${amt/100:,.0f} in sales"
                     for h, amt in upcoming
                 )
 
-        prompt = f"""You are a veteran restaurant operations consultant who has managed high-volume independent restaurants for 20+ years. You think in terms of covers, labor dollars per hour, ticket averages, and contribution margin — not vague suggestions.
+        # Flag staff who may be in or near a legally required break window (California law)
+        break_notes = []
+        for s in open_shifts:
+            h = s["hours"]
+            if 3.5 <= h < 4.0:
+                break_notes.append(f"  {s['name']} ({h:.1f}h) — likely due for or mid 10-min paid rest break")
+            elif 4.5 <= h < 5.5:
+                break_notes.append(f"  {s['name']} ({h:.1f}h) — approaching 30-min unpaid meal break (CA law, 5h mark)")
+            elif h >= 5.5:
+                break_notes.append(f"  {s['name']} ({h:.1f}h) — past meal break, cuttable now if volume warrants")
+        break_context = ("\nCALIFORNIA BREAK STATUS:\n" + "\n".join(break_notes)) if break_notes else ""
 
-You are advising Alex, the owner-operator of La Flor Blanca, an authentic Salvadoran restaurant in Los Angeles. Alex runs a lean operation — pupusas, tamales, traditional plates — with a small crew. He knows his restaurant. Give him operator-level advice, not textbook advice.
+        prompt = f"""You are a veteran restaurant operations consultant who has run independent restaurants in Los Angeles for 20+ years. You think in labor dollars per hour, ticket averages, item contribution margin, and kitchen throughput — not generic management advice.
+
+You are advising Alex, the owner-operator of La Flor Blanca, an authentic Salvadoran restaurant in Los Angeles. Small crew, lean operation.
+
+CRITICAL MENU KNOWLEDGE — factor this into every recommendation:
+- Pupusas are LABOR-HEAVY: each one is 8–10 minutes of skilled hand work (patting masa, stuffing, cooking). High volume on pupusas during a labor breach makes it worse, not better. Do NOT tell Alex to push pupusas when he's already over on labor.
+- HIGH-MARGIN, LOW-LABOR items to push instead: drinks (horchata, agua fresca, sodas — near-zero prep, ~80% margin), tamales (already made, just heat), plantains (simple fry), packaged items. These move the ticket average without adding kitchen labor.
+- A "special" only makes sense if it doesn't create more kitchen work. A verbal upsell at the counter ("want a drink with that?") costs nothing. A new combo that requires more pupusa production makes the labor problem worse.
+- Do NOT suggest dynamic pricing or POS changes — too slow to execute and margins aren't calculated yet.
 
 RIGHT NOW — {day_name} at {time_str}:
-- Labor is at {labor_pct*100:.1f}% of sales. Target is under {self._config.labor_threshold*100:.0f}%. That's {(labor_pct - self._config.labor_threshold)*100:.1f} points over.
-- Labor dollars on the clock: ${labor_cents/100:,.2f}
-- Sales so far today: ${sales_cents/100:,.2f}
-- Situation: {urgency}
+- Labor: {labor_pct*100:.1f}% of sales (target: under {self._config.labor_threshold*100:.0f}%, currently {(labor_pct - self._config.labor_threshold)*100:.1f} points over)
+- Labor on the clock: ${labor_cents/100:,.2f} | Sales today: ${sales_cents/100:,.2f}
+- Alert stage: {urgency}
 
-WHO IS ON THE CLOCK:
+WHO IS ON THE CLOCK (sorted by cost, highest first):
 {staff_lines}
-
+{break_context}
 SALES CONTEXT:
 - {pace_line}
-- Moving well: {top}
-- Barely moving: {bottom}
+- Moving: {top}
+- Stagnant: {bottom}
 {trajectory_lines}
-CRITICAL INSTRUCTION: Use the trajectory data above to make a judgment call. If the next hour historically brings a significant sales jump, factor that into whether Alex should cut staff now or hold. If the next hour is historically flat or slow, cutting is the right move. Do the math — show what labor % looks like if he cuts the most expensive person AND if sales hit the historical average for the next hour.
 
-Your job: Give Alex 3–4 blunt, specific moves he can make in the next 30 minutes. Think like an operator standing on the line next to him — not someone writing a report. Use the actual staff names and menu items above. No bullet-point fluff, no "consider" language. Tell him exactly what to do and why it moves the number. If sales are behind pace, tell him which item to push and exactly how."""
+YOUR JOB — give Alex 3–4 blunt, specific calls:
+
+1. CUT OR HOLD: Use the trajectory data. If the next hour historically spikes, do the math — show labor % if sales hit that average AND if he cuts the top earner. If it's flat, cut immediately. But check break status first — never cut someone mid-break or before they've hit their legal break window. Name the person, state the math.
+
+2. WHAT TO PUSH RIGHT NOW: Only low-labor items. Drinks, tamales, sides. Tell him exactly how to move them — a counter ask, a table walkthrough, a handwritten sign. Not pupusas if labor is the problem.
+
+3. FORWARD LOOK: What does the next 90 minutes look like based on history? What's the decision point — the specific time or sales number where he should reassess cutting vs. holding?
+
+Be direct. Do the math inline. No hedging, no "consider," no textbook language."""
 
         try:
             response = self._client.messages.create(
