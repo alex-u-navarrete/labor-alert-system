@@ -122,12 +122,16 @@ PRIORITY ORDER — work through this in sequence, don't jump to cutting people:
 
 UNDERLYING TRUTH TO KEEP IN MIND: Frequently sending people home early destroys reliability and trust. If this alert is firing repeatedly on the same days and times, the real fix is the schedule — not the day-of reaction. Flag this if you see a pattern.
 
-Be direct. Do the math inline. No hedging, no "consider," no textbook language."""
+FORMATTING RULES — this is a plain text email, not a document:
+- No markdown. No asterisks, no ## headers, no --- separators, no bold formatting.
+- Write in plain paragraphs separated by blank lines.
+- When showing math, write it inline in a sentence: "If sales hit $300 this hour, labor drops from 45% to 31%."
+- Max 4 short paragraphs. Be dense, not long."""
 
         try:
             response = self._client.messages.create(
                 model=self.MODEL,
-                max_tokens=300,
+                max_tokens=700,
                 messages=[{"role": "user", "content": prompt}],
             )
             return response.content[0].text.strip()

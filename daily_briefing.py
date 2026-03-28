@@ -189,7 +189,7 @@ Cover three things in order:
 2. What today looks like given weather, pay cycle, and any events — and the one staffing or sales call that matters most because of it.
 3. If there's a pattern worth flagging (same day keeps running soft, labor creeping up, etc.) call it out plainly.
 
-Write like you're texting Alex before he gets to the restaurant — direct, no corporate language, no bullet points."""
+Write like you're texting Alex before he gets to the restaurant — direct, no corporate language, no bullet points, no markdown, no asterisks, plain text only."""
 
         try:
             response = self._client.messages.create(

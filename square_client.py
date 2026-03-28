@@ -197,7 +197,7 @@ class SquareDataClient:
         now     = datetime.now(self._config.tz)
         buckets: dict = defaultdict(list)
 
-        for weeks_back in range(1, 5):
+        for weeks_back in range(1, 3):  # 2 weeks — enough signal, avoids timeout
             past_day = now - timedelta(weeks=weeks_back)
             if past_day.weekday() not in self._config.BUSINESS_HOURS:
                 continue
