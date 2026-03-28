@@ -112,9 +112,11 @@ class LaborMonitor:
                 claude_section = ""
                 if self._advisor:
                     log.info("Requesting Claude AI advice...")
+                    hourly_history = self._square.get_hourly_sales_history()
                     claude_section = self._advisor.get_labor_advice(
                         labor_pct, labor_cents, sales_cents,
                         shift_details, item_sales, hist_pace, target_stage,
+                        hourly_history=hourly_history,
                     )
 
                 body = self._builder.build_labor_alert(

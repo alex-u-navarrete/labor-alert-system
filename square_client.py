@@ -188,6 +188,47 @@ class SquareDataClient:
 
         return sum(totals) / len(totals) if totals else None
 
+    def get_hourly_sales_history(self, hours_ahead: int = 2) -> dict:
+        """
+        Returns average sales per hour-of-day for the same weekday over last 4 weeks.
+        Keys are hour integers (0–23), values are average sales in cents.
+        Used by Claude to judge whether the next 1–2 hours are likely to pick up.
+        """
+        now     = datetime.now(self._config.tz)
+        buckets: dict = defaultdict(list)
+
+        for weeks_back in range(1, 5):
+            past_day = now - timedelta(weeks=weeks_back)
+            if past_day.weekday() not in self._config.BUSINESS_HOURS:
+                continue
+            oh, om    = map(int, self._config.BUSINESS_HOURS[past_day.weekday()][0].split(":"))
+            ch, cm    = map(int, self._config.BUSINESS_HOURS[past_day.weekday()][1].split(":"))
+            day_start = past_day.replace(hour=oh, minute=om, second=0, microsecond=0)
+            day_end   = past_day.replace(hour=ch, minute=cm, second=0, microsecond=0)
+
+            hourly: dict = defaultdict(float)
+            cursor = None
+            while True:
+                kwargs = dict(begin_time=self.fmt_utc(day_start), end_time=self.fmt_utc(day_end),
+                              location_id=self._config.square_location, sort_order="ASC")
+                if cursor:
+                    kwargs["cursor"] = cursor
+                result = self._sq.payments.list_payments(**kwargs)
+                if not result.is_success():
+                    break
+                for p in result.body.get("payments", []):
+                    ts  = p.get("created_at", "")
+                    hr  = datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone(self._config.tz).hour
+                    amt = p.get("total_money", {}).get("amount", 0) - p.get("tip_money", {}).get("amount", 0)
+                    hourly[hr] += amt
+                cursor = result.body.get("cursor")
+                if not cursor:
+                    break
+            for hr, amt in hourly.items():
+                buckets[hr].append(amt)
+
+        return {hr: sum(v) / len(v) for hr, v in buckets.items() if v}
+
     def get_weekly_history(self, weeks: int = 8) -> tuple:
         """Returns (daily_sales, daily_labor) dicts for the last N weeks."""
         now      = datetime.now(self._config.tz)

@@ -31,6 +31,7 @@ class ClaudeAdvisor:
         item_sales: dict,
         hist_pace: float | None,
         stage: int,
+        hourly_history: dict | None = None,
     ) -> str:
         """Returns a Claude-generated advisory string for a labor breach email."""
         now      = datetime.now(self._config.tz)
@@ -62,6 +63,17 @@ class ClaudeAdvisor:
 
         urgency = {1: "just crossed the threshold", 2: "been over threshold for hours", 3: "CRITICAL — hours over threshold and escalating"}[stage]
 
+        # Build next-2-hours trajectory from historical hourly data
+        trajectory_lines = ""
+        if hourly_history:
+            upcoming = [(h, hourly_history[h]) for h in range(now.hour + 1, now.hour + 3) if h in hourly_history]
+            if upcoming:
+                trajectory_lines = "\nHISTORICAL TRAJECTORY FOR THE NEXT 2 HOURS (same weekday, last 4 weeks avg):\n"
+                trajectory_lines += "\n".join(
+                    f"  {datetime(2000,1,1,h).strftime('%I %p')}: avg ${amt/100:,.0f} in sales"
+                    for h, amt in upcoming
+                )
+
         prompt = f"""You are a veteran restaurant operations consultant who has managed high-volume independent restaurants for 20+ years. You think in terms of covers, labor dollars per hour, ticket averages, and contribution margin — not vague suggestions.
 
 You are advising Alex, the owner-operator of La Flor Blanca, an authentic Salvadoran restaurant in Los Angeles. Alex runs a lean operation — pupusas, tamales, traditional plates — with a small crew. He knows his restaurant. Give him operator-level advice, not textbook advice.
@@ -79,10 +91,10 @@ SALES CONTEXT:
 - {pace_line}
 - Moving well: {top}
 - Barely moving: {bottom}
+{trajectory_lines}
+CRITICAL INSTRUCTION: Use the trajectory data above to make a judgment call. If the next hour historically brings a significant sales jump, factor that into whether Alex should cut staff now or hold. If the next hour is historically flat or slow, cutting is the right move. Do the math — show what labor % looks like if he cuts the most expensive person AND if sales hit the historical average for the next hour.
 
-Your job: Give Alex 3–4 blunt, specific moves he can make in the next 30 minutes. Think like an operator standing on the line next to him — not someone writing a report. Use the actual staff names and menu items above. Do the math when it helps. No bullet-point fluff, no "consider" language. Tell him exactly what to do and why it moves the number.
-
-If it's slow, tell him who to cut and what that does to the labor %. If sales are behind, tell him which item to push and exactly how (a table visit? a counter sign? a text to regulars?). If there's a window to recover before close, spell it out."""
+Your job: Give Alex 3–4 blunt, specific moves he can make in the next 30 minutes. Think like an operator standing on the line next to him — not someone writing a report. Use the actual staff names and menu items above. No bullet-point fluff, no "consider" language. Tell him exactly what to do and why it moves the number. If sales are behind pace, tell him which item to push and exactly how."""
 
         try:
             response = self._client.messages.create(
