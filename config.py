@@ -28,12 +28,6 @@ class Config:
         # ── Required ──────────────────────────────────────────────────────────
         self.square_token    = self._require("SQUARE_ACCESS_TOKEN")
         self.square_location = self._require("SQUARE_LOCATION_ID")
-        self.twilio_sid      = self._require("TWILIO_ACCOUNT_SID")
-        self.twilio_token    = self._require("TWILIO_AUTH_TOKEN")
-        self.twilio_from     = self._require("TWILIO_FROM_NUMBER")
-        self.alert_phones    = [
-            p.strip() for p in self._require("ALERT_PHONE_NUMBERS").split(",")
-        ]
 
         # ── Optional / defaulted ──────────────────────────────────────────────
         self.tz_name          = os.environ.get("TIMEZONE", "America/Los_Angeles")
@@ -42,11 +36,14 @@ class Config:
         self.tz               = pytz.timezone(self.tz_name)
 
         # ── SendGrid (all three required to enable email) ─────────────────────
-        self.sg_key      = os.environ.get("SENDGRID_API_KEY",  "").strip()
-        self.email_from  = os.environ.get("ALERT_EMAIL_FROM",  "").strip()
-        _email_to_raw    = os.environ.get("ALERT_EMAIL_TO",    "").strip()
+        self.sg_key       = self._require("SENDGRID_API_KEY")
+        self.email_from   = self._require("ALERT_EMAIL_FROM")
+        _email_to_raw     = self._require("ALERT_EMAIL_TO")
         self.alert_emails = [e.strip() for e in _email_to_raw.split(",") if e.strip()]
-        self.sendgrid_enabled = bool(self.sg_key and self.email_from and self.alert_emails)
+
+        # ── Anthropic / Claude AI ─────────────────────────────────────────────
+        self.anthropic_api_key  = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+        self.claude_enabled     = bool(self.anthropic_api_key)
 
     @staticmethod
     def _require(name: str) -> str:

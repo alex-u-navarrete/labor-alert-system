@@ -6,6 +6,7 @@ Entry point. Wires up all components and starts the monitor.
 import logging
 
 from alert_builder import AlertBuilder
+from claude_advisor import ClaudeAdvisor
 from config import Config
 from notifier import Notifier
 from scheduler import LaborMonitor
@@ -22,5 +23,6 @@ if __name__ == "__main__":
     square   = SquareDataClient(config)
     notifier = Notifier(config)
     builder  = AlertBuilder(config)
-    monitor  = LaborMonitor(config, square, notifier, builder)
+    advisor  = ClaudeAdvisor(config) if config.claude_enabled else None
+    monitor  = LaborMonitor(config, square, notifier, builder, advisor)
     monitor.run()

@@ -8,6 +8,7 @@ from datetime import datetime
 from apscheduler.schedulers.blocking import BlockingScheduler
 
 from alert_builder import AlertBuilder
+from claude_advisor import ClaudeAdvisor
 from config import Config
 from notifier import Notifier
 from square_client import SquareDataClient
@@ -28,11 +29,13 @@ class LaborMonitor:
         square: SquareDataClient,
         notifier: Notifier,
         builder: AlertBuilder,
+        advisor: ClaudeAdvisor | None = None,
     ) -> None:
         self._config   = config
         self._square   = square
         self._notifier = notifier
         self._builder  = builder
+        self._advisor  = advisor
 
         # Breach state
         self._in_breach:    bool          = False
@@ -105,18 +108,24 @@ class LaborMonitor:
             if target_stage:
                 item_sales = self._square.get_item_sales()
                 hist_pace  = self._square.get_historical_pace()
-                messages   = self._builder.build_labor_alert(
+
+                claude_section = ""
+                if self._advisor:
+                    log.info("Requesting Claude AI advice...")
+                    claude_section = self._advisor.get_labor_advice(
+                        labor_pct, labor_cents, sales_cents,
+                        shift_details, item_sales, hist_pace, target_stage,
+                    )
+
+                body = self._builder.build_labor_alert(
                     labor_pct, labor_cents, sales_cents,
                     shift_details, item_sales, hist_pace, target_stage,
+                    claude_section=claude_section,
                 )
-                subjects = [
-                    f"La Flor Blanca — Labor Alert (Stage {target_stage})",
-                    "La Flor Blanca — Sales Pace",
-                ]
-                for msg, subj in zip(messages, subjects):
-                    self._notifier.send_alert(subj, msg)
+                subject = f"La Flor Blanca — Labor Alert (Stage {target_stage})"
+                self._notifier.send_alert(subject, body)
                 self._alert_stage = target_stage
-                log.info("Stage %d alerts sent (%.1fh into breach).", target_stage, breach_hours)
+                log.info("Stage %d alert sent (%.1fh into breach).", target_stage, breach_hours)
             else:
                 log.info(
                     "In breach — stage %d, breach %.1fh, next escalation at %.0fh.",
@@ -155,7 +164,7 @@ class LaborMonitor:
 
         self._notifier.send_alert(
             subject="La Flor Blanca — Weekly Labor Insight",
-            sms_body=message,
+            body=message,
         )
         log.info("Weekly insight sent.")
 
@@ -168,11 +177,8 @@ class LaborMonitor:
         log.info("Timezone     : %s", cfg.tz_name)
         log.info("Threshold    : %.0f%%", cfg.labor_threshold * 100)
         log.info("Escalation   : every %.0f hours while in breach (max 3 bursts)", cfg.escalation_hours)
-        log.info("Alert phones : %s", ", ".join(cfg.alert_phones))
-        if cfg.sendgrid_enabled:
-            log.info("Alert emails : %s", ", ".join(cfg.alert_emails))
-        else:
-            log.info("Alert emails : disabled (set SENDGRID_API_KEY, ALERT_EMAIL_FROM, ALERT_EMAIL_TO to enable)")
+        log.info("Alert emails : %s", ", ".join(cfg.alert_emails))
+        log.info("Claude AI    : %s", "enabled" if cfg.claude_enabled else "disabled (set ANTHROPIC_API_KEY to enable)")
         log.info("=" * 60)
 
         scheduler = BlockingScheduler(timezone=cfg.tz)

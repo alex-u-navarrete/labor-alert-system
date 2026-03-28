@@ -10,7 +10,7 @@ from config import Config
 
 
 class AlertBuilder:
-    """Builds formatted alert strings for SMS and email delivery."""
+    """Builds formatted alert strings for email delivery."""
 
     STAGE_LABELS = {1: "LABOR ALERT", 2: "LABOR WARNING", 3: "URGENT LABOR WARNING"}
 
@@ -26,16 +26,17 @@ class AlertBuilder:
         item_sales: dict,
         hist_pace: float | None,
         stage: int,
-    ) -> list[str]:
-        """Returns [labor_message, sales_message] for SMS/email delivery."""
+        claude_section: str = "",
+    ) -> str:
+        """Returns a single email body with labor breakdown, sales pace, and optional AI section."""
         now           = datetime.now(self._config.tz)
         time_str      = now.strftime("%I:%M %p")
         labor_dollars = labor_cents / 100
         sales_dollars = sales_cents / 100
         header        = self.STAGE_LABELS.get(stage, "LABOR ALERT")
 
-        # ── Message 1: Labor breakdown ────────────────────────────────────────
-        lines1 = [
+        # ── Labor breakdown ───────────────────────────────────────────────────
+        lines = [
             f"LA FLOR BLANCA - {header}",
             f"{time_str} | Labor: {labor_pct*100:.1f}% (target: {self._config.labor_threshold*100:.0f}%)",
             f"Labor cost: ${labor_dollars:,.2f} | Sales: ${sales_dollars:,.2f}",
@@ -45,47 +46,51 @@ class AlertBuilder:
 
         open_shifts = [s for s in shift_details if s["status"] == "OPEN"]
         for s in open_shifts:
-            lines1.append(f"  {s['name']}: {s['hours']:.1f}h = ${s['cost_cents']/100:.2f}")
+            lines.append(f"  {s['name']}: {s['hours']:.1f}h = ${s['cost_cents']/100:.2f}")
 
         if open_shifts:
             cut     = open_shifts[0]
             new_pct = (labor_cents - cut["cost_cents"]) / sales_cents * 100
-            lines1 += [
+            lines += [
                 "",
                 f"ACTION: Send {cut['name']} home now.",
                 f"Saves ~${cut['cost_cents']/100:.2f}/hr, drops labor to ~{new_pct:.1f}%",
             ]
 
-        # ── Message 2: Sales pace + items ─────────────────────────────────────
-        lines2 = [f"SALES PACE - {time_str}"]
+        # ── Sales pace + items ────────────────────────────────────────────────
+        lines += ["", f"SALES PACE - {time_str}"]
 
         if hist_pace and hist_pace > 0:
             diff_pct  = (sales_cents - hist_pace) / hist_pace * 100
             direction = "above" if diff_pct >= 0 else "below"
             day_name  = self._config.DAY_NAMES.get(now.weekday(), "today")
-            lines2 += [
+            lines += [
                 f"Today: ${sales_dollars:,.2f}",
                 f"Typical {day_name} by now: ${hist_pace/100:,.2f}",
                 f"Running {abs(diff_pct):.0f}% {direction} your usual pace",
             ]
         else:
-            lines2.append(f"Sales today: ${sales_dollars:,.2f}")
+            lines.append(f"Sales today: ${sales_dollars:,.2f}")
 
         if item_sales:
             sorted_items = sorted(item_sales.items(), key=lambda x: x[1], reverse=True)
-            lines2 += ["", "TOP SELLERS TODAY:"]
+            lines += ["", "TOP SELLERS TODAY:"]
             for name, qty in sorted_items[:3]:
-                lines2.append(f"  {name}: {int(qty)} sold")
+                lines.append(f"  {name}: {int(qty)} sold")
             if len(sorted_items) > 4:
-                lines2 += ["", "SLOWEST TODAY:"]
+                lines += ["", "SLOWEST TODAY:"]
                 for name, qty in sorted_items[-2:]:
-                    lines2.append(f"  {name}: {int(qty)} sold")
+                    lines.append(f"  {name}: {int(qty)} sold")
 
         suggestion = self._marketing_suggestion(item_sales, hist_pace, sales_cents, now)
         if suggestion:
-            lines2 += ["", f"SUGGESTION: {suggestion}"]
+            lines += ["", f"SUGGESTION: {suggestion}"]
 
-        return ["\n".join(lines1), "\n".join(lines2)]
+        # ── Claude AI advisor section ─────────────────────────────────────────
+        if claude_section:
+            lines += ["", "─" * 40, "AI ADVISOR", "─" * 40, "", claude_section]
+
+        return "\n".join(lines)
 
     def build_weekly_insight(self, daily_sales: dict, daily_labor: dict) -> str | None:
         """Returns the weekly insight message string, or None if insufficient data."""
