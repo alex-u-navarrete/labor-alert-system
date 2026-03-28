@@ -3,3 +3,4 @@ anthropic>=0.40.0
 APScheduler>=3.10.0
 pytz>=2024.1
 sendgrid>=6.9.0
+requests>=2.31.0

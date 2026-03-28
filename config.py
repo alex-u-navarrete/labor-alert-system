@@ -45,6 +45,11 @@ class Config:
         self.anthropic_api_key  = os.environ.get("ANTHROPIC_API_KEY", "").strip()
         self.claude_enabled     = bool(self.anthropic_api_key)
 
+        # ── External signals ──────────────────────────────────────────────────
+        self.ticketmaster_key   = os.environ.get("TICKETMASTER_API_KEY", "").strip()
+        self.restaurant_lat     = float(os.environ.get("RESTAURANT_LAT", "34.0522"))
+        self.restaurant_lng     = float(os.environ.get("RESTAURANT_LNG", "-118.2437"))
+
     @staticmethod
     def _require(name: str) -> str:
         val = os.environ.get(name, "").strip()

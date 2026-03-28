@@ -10,6 +10,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from alert_builder import AlertBuilder
 from claude_advisor import ClaudeAdvisor
 from config import Config
+from daily_briefing import DailyBriefing
 from notifier import Notifier
 from square_client import SquareDataClient
 
@@ -30,12 +31,14 @@ class LaborMonitor:
         notifier: Notifier,
         builder: AlertBuilder,
         advisor: ClaudeAdvisor | None = None,
+        briefing: DailyBriefing | None = None,
     ) -> None:
         self._config   = config
         self._square   = square
         self._notifier = notifier
         self._builder  = builder
         self._advisor  = advisor
+        self._briefing = briefing
 
         # Breach state
         self._in_breach:    bool          = False
@@ -151,6 +154,12 @@ class LaborMonitor:
             return 3
         return None
 
+    def morning_briefing(self) -> None:
+        if self._briefing:
+            self._briefing.send()
+        else:
+            log.info("Morning briefing skipped — ANTHROPIC_API_KEY not set.")
+
     def weekly_insight(self) -> None:
         log.info("Running weekly insight...")
         daily_sales, daily_labor = self._square.get_weekly_history(weeks=8)
@@ -192,6 +201,14 @@ class LaborMonitor:
             id="labor_check",
         )
         scheduler.add_job(
+            self.morning_briefing,
+            trigger="cron",
+            day_of_week="wed,thu,fri,sat,sun",
+            hour=9,
+            minute=0,
+            id="morning_briefing",
+        )
+        scheduler.add_job(
             self.weekly_insight,
             trigger="cron",
             day_of_week="mon",
@@ -199,7 +216,7 @@ class LaborMonitor:
             minute=30,
             id="weekly_insight",
         )
-        log.info("Scheduler started. Labor check every 30 min. Weekly insight every Monday 8:30 AM.")
+        log.info("Scheduler started. Labor check every 30 min. Morning briefing 9 AM. Weekly insight Monday 8:30 AM.")
 
         try:
             scheduler.start()
