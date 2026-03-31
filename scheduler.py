@@ -72,6 +72,19 @@ class LaborMonitor:
                 self._reset_breach()
             return
 
+        # Skip the first hour after open — employees are clocking in but no customers yet.
+        # Avoids noisy false-high labor% readings before the first sale of the day.
+        day = now.weekday()
+        oh, om  = map(int, self._config.BUSINESS_HOURS[day][0].split(":"))
+        open_dt = now.replace(hour=oh, minute=om, second=0, microsecond=0)
+        minutes_since_open = (now - open_dt).total_seconds() / 60
+        if minutes_since_open < 60:
+            log.info(
+                "Pre-open window (%d min since 9:30 AM) — skipping until 10:30 AM.",
+                int(minutes_since_open),
+            )
+            return
+
         log.info("--- Check at %s ---", now.strftime("%Y-%m-%d %H:%M %Z"))
 
         active_count, labor_cents, shift_details = self._square.get_labor_data()
