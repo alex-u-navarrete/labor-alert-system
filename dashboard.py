@@ -63,8 +63,9 @@ class DashboardApp:
         def index(request: Request, _: None = Depends(self._require_token)) -> HTMLResponse:
             token = request.query_params.get("token", "")
             return self._tpl.TemplateResponse(
-                "index.html",
-                {"request": request, "token": token, "threshold_pct": int(self._config.labor_threshold * 100)},
+                request=request,
+                name="index.html",
+                context={"token": token, "threshold_pct": int(self._config.labor_threshold * 100)},
             )
 
         @app.get("/api/live")
@@ -117,10 +118,14 @@ class DashboardApp:
 
                 labels, labor_pcts, sales_vals = [], [], []
                 for date_str in sorted(daily_sales.keys()):
+                    # Guard against malformed/empty keys from the Square API
+                    try:
+                        dt = datetime.strptime(date_str, "%Y-%m-%d")
+                    except (ValueError, TypeError):
+                        continue
                     s = daily_sales.get(date_str, 0)
                     l = daily_labor.get(date_str, 0)
                     pct = round((l / s) * 100, 1) if s > 0 else 0.0
-                    dt  = datetime.strptime(date_str, "%Y-%m-%d")
                     labels.append(dt.strftime("%a %b %-d"))
                     labor_pcts.append(pct)
                     sales_vals.append(round(s / 100, 2))

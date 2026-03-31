@@ -293,19 +293,33 @@
         type: "bar",
         data: {
           labels: d.labels,
-          datasets: [{
-            label: "Labor %",
-            data: d.labor_pct,
-            backgroundColor: colors,
-            borderRadius: 4,
-          }]
+          datasets: [
+            {
+              label: "Labor %",
+              data: d.labor_pct,
+              backgroundColor: colors,
+              borderRadius: 4,
+              order: 2,
+            },
+            {
+              label: `Target (${d.threshold}%)`,
+              data: Array(d.labels.length).fill(d.threshold),
+              type: "line",
+              borderColor: "rgba(192,57,43,0.75)",
+              borderDash: [6, 4],
+              borderWidth: 2,
+              pointRadius: 0,
+              fill: false,
+              tension: 0,
+              order: 1,
+            }
+          ]
         },
         options: {
           responsive: true, maintainAspectRatio: false,
           plugins: {
             legend: { display: false },
-            annotation: { annotations: {} },
-            tooltip: { callbacks: { label: ctx => " " + ctx.raw + "%" } }
+            tooltip: { callbacks: { label: ctx => ctx.datasetIndex === 0 ? " " + ctx.raw + "%" : null } }
           },
           scales: {
             x: { grid: { color: "rgba(255,255,255,0.05)" }, ticks: { color: "#8899aa", maxRotation: 45 } },
@@ -314,24 +328,6 @@
               suggestedMin: 0, suggestedMax: Math.max(50, d.threshold + 15),
             }
           }
-        }
-      });
-
-      // Draw threshold line manually as a horizontal plugin
-      Chart.register({
-        id: "thresholdLine",
-        afterDraw(chart) {
-          const { ctx, scales: { y } } = chart;
-          const yPos = y.getPixelForValue(d.threshold);
-          ctx.save();
-          ctx.strokeStyle = "rgba(192,57,43,0.6)";
-          ctx.lineWidth = 1.5;
-          ctx.setLineDash([6, 4]);
-          ctx.beginPath();
-          ctx.moveTo(chart.chartArea.left, yPos);
-          ctx.lineTo(chart.chartArea.right, yPos);
-          ctx.stroke();
-          ctx.restore();
         }
       });
 
