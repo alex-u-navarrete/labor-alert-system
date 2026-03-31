@@ -45,6 +45,10 @@ class Config:
         self.anthropic_api_key  = os.environ.get("ANTHROPIC_API_KEY", "").strip()
         self.claude_enabled     = bool(self.anthropic_api_key)
 
+        # ── Dashboard ─────────────────────────────────────────────────────────
+        # If unset, the dashboard is open to anyone with the Railway URL (fine for dev).
+        self.dashboard_token: str = os.environ.get("DASHBOARD_TOKEN", "").strip()
+
     @staticmethod
     def _require(name: str) -> str:
         val = os.environ.get(name, "").strip()
