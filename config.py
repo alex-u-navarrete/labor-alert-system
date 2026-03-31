@@ -11,16 +11,16 @@ class Config:
     """Single source of truth for all runtime configuration."""
 
     BUSINESS_HOURS: dict = {
-        0: ("09:30", "19:00"),  # Monday
-        2: ("09:30", "19:00"),  # Wednesday
-        3: ("09:30", "19:00"),  # Thursday
-        4: ("09:30", "19:30"),  # Friday
-        5: ("09:30", "19:30"),  # Saturday
-        6: ("09:30", "19:30"),  # Sunday
+        1: ("09:30", "20:00"),  # Tuesday   (10 AM–7 PM + buffer)
+        2: ("09:30", "20:00"),  # Wednesday (10 AM–7 PM + buffer)
+        3: ("09:30", "20:00"),  # Thursday  (10 AM–7 PM + buffer)
+        4: ("09:30", "20:00"),  # Friday    (10 AM–7 PM + buffer)
+        5: ("09:30", "20:30"),  # Saturday  (10 AM–7:30 PM + buffer)
+        6: ("09:30", "20:30"),  # Sunday    (10 AM–7:30 PM + buffer)
     }
 
     DAY_NAMES: dict = {
-        0: "Monday", 2: "Wednesday", 3: "Thursday",
+        1: "Tuesday", 2: "Wednesday", 3: "Thursday",
         4: "Friday",  5: "Saturday",  6: "Sunday",
     }
 

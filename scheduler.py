@@ -207,7 +207,7 @@ class LaborMonitor:
         scheduler.add_job(
             self.morning_briefing,
             trigger="cron",
-            day_of_week="wed,thu,fri,sat,sun",
+            day_of_week="tue,wed,thu,fri,sat,sun",
             hour=9,
             minute=0,
             id="morning_briefing",
