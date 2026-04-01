@@ -50,6 +50,10 @@ class Config:
         self.restaurant_lat     = float(os.environ.get("RESTAURANT_LAT", "34.0522"))
         self.restaurant_lng     = float(os.environ.get("RESTAURANT_LNG", "-118.2437"))
 
+        # ── Dashboard ─────────────────────────────────────────────────────────
+        # If unset, the dashboard is open to anyone with the Railway URL (fine for dev).
+        self.dashboard_token: str = os.environ.get("DASHBOARD_TOKEN", "").strip()
+
     @staticmethod
     def _require(name: str) -> str:
         val = os.environ.get(name, "").strip()

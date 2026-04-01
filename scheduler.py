@@ -3,9 +3,10 @@ LaborMonitor — orchestrates scheduled labor checks and weekly insights.
 """
 
 import logging
+import time
 from datetime import datetime
 
-from apscheduler.schedulers.blocking import BlockingScheduler
+from apscheduler.schedulers.background import BackgroundScheduler
 
 from alert_builder import AlertBuilder
 from claude_advisor import ClaudeAdvisor
@@ -45,6 +46,9 @@ class LaborMonitor:
         self._breach_start: datetime|None = None
         self._alert_stage:  int           = 0
 
+        # Scheduler handle (set by start())
+        self._scheduler: BackgroundScheduler | None = None
+
     # ── Internal helpers ──────────────────────────────────────────────────────
 
     def _is_business_hours(self) -> bool:
@@ -73,6 +77,19 @@ class LaborMonitor:
             if self._in_breach:
                 log.info("Business day ended — resetting breach state.")
                 self._reset_breach()
+            return
+
+        # Skip the first hour after open — employees are clocking in but no customers yet.
+        # Avoids noisy false-high labor% readings before the first sale of the day.
+        day = now.weekday()
+        oh, om  = map(int, self._config.BUSINESS_HOURS[day][0].split(":"))
+        open_dt = now.replace(hour=oh, minute=om, second=0, microsecond=0)
+        minutes_since_open = (now - open_dt).total_seconds() / 60
+        if minutes_since_open < 60:
+            log.info(
+                "Pre-open window (%d min since 9:30 AM) — skipping until 10:30 AM.",
+                int(minutes_since_open),
+            )
             return
 
         log.info("--- Check at %s ---", now.strftime("%Y-%m-%d %H:%M %Z"))
@@ -183,9 +200,19 @@ class LaborMonitor:
         )
         log.info("Weekly insight sent.")
 
-    # ── Entry point ───────────────────────────────────────────────────────────
+    # ── Scheduler lifecycle ───────────────────────────────────────────────────
 
-    def run(self) -> None:
+    @property
+    def breach_state(self) -> dict:
+        """Read-only snapshot of current breach state for the dashboard."""
+        return {
+            "in_breach":    self._in_breach,
+            "breach_start": self._breach_start,
+            "alert_stage":  self._alert_stage,
+        }
+
+    def start(self) -> None:
+        """Start the background scheduler (non-blocking). Call once at startup."""
         cfg = self._config
         log.info("=" * 60)
         log.info("La Flor Blanca Labor Monitor starting up")
@@ -196,15 +223,15 @@ class LaborMonitor:
         log.info("Claude AI    : %s", "enabled" if cfg.claude_enabled else "disabled (set ANTHROPIC_API_KEY to enable)")
         log.info("=" * 60)
 
-        scheduler = BlockingScheduler(timezone=cfg.tz)
-        scheduler.add_job(
+        self._scheduler = BackgroundScheduler(timezone=cfg.tz)
+        self._scheduler.add_job(
             self.check_labor,
             trigger="interval",
             minutes=30,
             next_run_time=datetime.now(cfg.tz),
             id="labor_check",
         )
-        scheduler.add_job(
+        self._scheduler.add_job(
             self.morning_briefing,
             trigger="cron",
             day_of_week="tue,wed,thu,fri,sat,sun",
@@ -212,7 +239,7 @@ class LaborMonitor:
             minute=0,
             id="morning_briefing",
         )
-        scheduler.add_job(
+        self._scheduler.add_job(
             self.weekly_insight,
             trigger="cron",
             day_of_week="mon",
@@ -220,9 +247,22 @@ class LaborMonitor:
             minute=30,
             id="weekly_insight",
         )
-        log.info("Scheduler started. Labor check every 30 min. Morning briefing 9 AM. Weekly insight Monday 8:30 AM.")
+        self._scheduler.start()
+        log.info("Background scheduler started. Labor check every 30 min. Morning briefing 9 AM Tue–Sun. Weekly insight Monday 8:30 AM.")
 
+    def stop(self) -> None:
+        """Gracefully shut down the background scheduler."""
+        if self._scheduler and self._scheduler.running:
+            self._scheduler.shutdown()
+            log.info("Scheduler stopped.")
+
+    def run(self) -> None:
+        """Legacy blocking entry point — starts scheduler then blocks the main thread.
+        Used only when running without the web dashboard (e.g. local debug)."""
+        self.start()
         try:
-            scheduler.start()
+            while True:
+                time.sleep(1)
         except (KeyboardInterrupt, SystemExit):
+            self.stop()
             log.info("Monitor stopped.")
