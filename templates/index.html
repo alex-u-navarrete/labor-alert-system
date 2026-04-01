@@ -2,344 +2,432 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>La Flor Blanca — Command Center</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.0/dist/apexcharts.min.js"></script>
+<script src="https://unpkg.com/lucide@0.474.0/dist/umd/lucide.js"></script>
 <style>
-  :root {
-    --green: #27ae60; --orange: #e67e22; --red: #c0392b;
-    --blue: #2980b9;  --dark: #1a1a2e;  --card: #16213e;
-    --text: #e0e0e0;  --muted: #8899aa; --border: #2d3561;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--dark); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 14px; }
+:root {
+  --bg:        #0c0e14;
+  --surface:   #13161f;
+  --surface-2: #1c1f2e;
+  --border:    rgba(255,255,255,0.07);
+  --text:      #e2e8f0;
+  --muted:     #4b5675;
+  --green:     #22c55e;
+  --amber:     #f59e0b;
+  --red:       #ef4444;
+  --accent:    #6366f1;
+  --sidebar-w: 220px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:14px;min-height:100vh;display:flex;flex-direction:column;}
 
-  /* ── Header ── */
-  header { background: var(--card); border-bottom: 1px solid var(--border); padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
-  header h1 { font-size: 17px; font-weight: 700; letter-spacing: 0.5px; }
-  header h1 span { color: var(--orange); }
-  #last-updated { color: var(--muted); font-size: 12px; }
+/* ── Sidebar ── */
+#sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100;transition:transform .25s ease;}
+#sidebar .logo{padding:20px 16px 16px;border-bottom:1px solid var(--border);}
+#sidebar .logo h1{font-size:15px;font-weight:700;letter-spacing:.3px;}
+#sidebar .logo h1 span{color:var(--accent);}
+#sidebar .logo p{font-size:11px;color:var(--muted);margin-top:2px;}
+#sidebar nav{flex:1;padding:12px 8px;display:flex;flex-direction:column;gap:2px;}
+#sidebar nav a{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;color:var(--muted);text-decoration:none;font-size:13px;font-weight:500;transition:background .15s,color .15s;cursor:pointer;}
+#sidebar nav a:hover{background:var(--surface-2);color:var(--text);}
+#sidebar nav a.active{background:rgba(99,102,241,.15);color:var(--accent);}
+#sidebar nav a i{width:16px;height:16px;flex-shrink:0;}
+#sidebar .bottom{padding:12px 8px;border-top:1px solid var(--border);}
+#sidebar .bottom p{font-size:11px;color:var(--muted);padding:8px 10px;}
 
-  /* ── Nav tabs ── */
-  nav { background: var(--card); border-bottom: 2px solid var(--border); display: flex; gap: 2px; padding: 0 16px; overflow-x: auto; }
-  nav button { background: none; border: none; color: var(--muted); padding: 10px 18px; cursor: pointer; font-size: 13px; font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -2px; white-space: nowrap; transition: color 0.2s; }
-  nav button:hover { color: var(--text); }
-  nav button.active { color: var(--orange); border-bottom-color: var(--orange); }
+/* ── Main ── */
+#main{margin-left:var(--sidebar-w);min-height:100vh;display:flex;flex-direction:column;}
+#topbar{padding:14px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface);}
+#topbar .left{display:flex;align-items:center;gap:10px;}
+#topbar .hamburger{display:none;background:none;border:none;color:var(--text);cursor:pointer;padding:4px;}
+#live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(34,197,94,.4);}50%{opacity:.8;box-shadow:0 0 0 5px rgba(34,197,94,0);}}
+#last-updated{font-size:12px;color:var(--muted);}
+#breach-banner{display:none;padding:10px 24px;font-size:13px;font-weight:600;text-align:center;}
+#breach-banner.active{display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(239,68,68,.12);color:#fca5a5;border-bottom:1px solid rgba(239,68,68,.25);}
+#breach-banner.warn{background:rgba(245,158,11,.1);color:#fcd34d;border-bottom:1px solid rgba(245,158,11,.2);}
+#content{padding:20px 24px;flex:1;}
 
-  /* ── Tab panels ── */
-  .tab-panel { display: none; padding: 20px; }
-  .tab-panel.active { display: block; }
+/* ── Tab panels ── */
+.tab{display:none;}.tab.active{display:block;}
 
-  /* ── Breach banner ── */
-  #breach-banner { display: none; background: var(--red); color: #fff; padding: 10px 20px; font-weight: 600; font-size: 13px; text-align: center; }
-  #breach-banner.warn { background: var(--orange); }
+/* ── Cards grid ── */
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;position:relative;overflow:hidden;}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.card.green::before{background:linear-gradient(90deg,var(--green),transparent);}
+.card.amber::before{background:linear-gradient(90deg,var(--amber),transparent);}
+.card.red::before{background:linear-gradient(90deg,var(--red),transparent);}
+.card.accent::before{background:linear-gradient(90deg,var(--accent),transparent);}
+.card .card-label{font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.card .card-label i{width:13px;height:13px;}
+.card .card-value{font-size:30px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-1px;}
+.card .card-sub{font-size:12px;color:var(--muted);margin-top:7px;}
+.card.green .card-value{color:var(--green);}
+.card.amber .card-value{color:var(--amber);}
+.card.red .card-value{color:var(--red);}
+.card.accent .card-value{color:var(--accent);}
 
-  /* ── Metric cards row ── */
-  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 20px; }
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
-  .card .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
-  .card .value { font-size: 28px; font-weight: 700; line-height: 1; }
-  .card .sub { color: var(--muted); font-size: 12px; margin-top: 6px; }
-  .card.green .value { color: var(--green); }
-  .card.orange .value { color: var(--orange); }
-  .card.red .value { color: var(--red); }
-  .card.blue .value { color: var(--blue); }
+/* ── Section ── */
+.section{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:20px;overflow:hidden;}
+.section-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.section-header h2{font-size:12px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:7px;}
+.section-header h2 i{width:13px;height:13px;}
+.section-body{padding:16px 18px;}
 
-  /* ── Section ── */
-  .section { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 20px; }
-  .section h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 14px; }
+/* ── Staff table ── */
+.staff-table{width:100%;border-collapse:collapse;}
+.staff-table th{font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);padding:0 12px 10px;text-align:left;}
+.staff-table th:last-child{text-align:right;}
+.staff-table td{padding:10px 12px;border-top:1px solid var(--border);font-size:13px;}
+.staff-table td:last-child{text-align:right;}
+.staff-row:hover td{background:rgba(255,255,255,.02);}
+.staff-avatar{width:28px;height:28px;border-radius:50%;background:rgba(99,102,241,.2);color:var(--accent);font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;margin-right:8px;vertical-align:middle;}
+.status-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-right:5px;animation:pulse 2s infinite;}
 
-  /* ── Staff table ── */
-  table { width: 100%; border-collapse: collapse; }
-  th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); }
-  td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
-  tr:last-child td { border-bottom: none; }
+/* ── Items ── */
+.item-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.item-row:last-child{margin-bottom:0;}
+.item-name{min-width:120px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.item-bar-wrap{flex:1;height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden;}
+.item-bar{height:100%;background:var(--accent);border-radius:3px;transition:width .4s ease;}
+.item-qty{font-size:12px;font-weight:600;color:var(--muted);min-width:30px;text-align:right;}
 
-  /* ── Chart container ── */
-  .chart-wrap { position: relative; height: 220px; }
+/* ── Coming soon ── */
+.coming-soon{text-align:center;padding:50px 20px;color:var(--muted);}
+.coming-soon .icon{width:40px;height:40px;margin:0 auto 14px;opacity:.4;}
+.coming-soon h3{font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px;}
+.coming-soon p{font-size:13px;line-height:1.6;}
 
-  /* ── Items list ── */
-  .items-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-  .item-pill { background: #1e2d4a; border: 1px solid var(--border); border-radius: 20px; padding: 5px 14px; font-size: 13px; }
-  .item-pill .qty { color: var(--orange); font-weight: 700; margin-left: 6px; }
+/* ── Agent preview table ── */
+.agent-table{width:100%;border-collapse:collapse;opacity:.4;pointer-events:none;}
+.agent-table th{font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);padding:0 12px 10px;text-align:left;}
+.agent-table td{padding:10px 12px;border-top:1px solid var(--border);font-size:13px;}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.badge-idle{background:rgba(245,158,11,.1);color:var(--amber);}
+.badge-done{background:rgba(34,197,94,.1);color:var(--green);}
+.badge-soon{background:rgba(239,68,68,.1);color:var(--red);}
 
-  /* ── Agents placeholder ── */
-  .coming-soon { text-align: center; padding: 60px 20px; color: var(--muted); }
-  .coming-soon .icon { font-size: 40px; margin-bottom: 16px; }
-  .coming-soon h3 { font-size: 16px; color: var(--text); margin-bottom: 8px; }
-  .agent-preview { opacity: 0.35; pointer-events: none; }
-  .agent-preview table { margin-top: 24px; }
-  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
-  .badge.idle { background: #2d2d00; color: #f0c040; }
-  .badge.done { background: #0d2d1a; color: #27ae60; }
-  .badge.soon { background: #2d0d0d; color: var(--red); }
+/* ── Overlay (mobile) ── */
+#overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99;}
 
-  /* ── Responsive ── */
-  @media (max-width: 480px) {
-    .card .value { font-size: 22px; }
-    nav button { padding: 10px 12px; font-size: 12px; }
-  }
+/* ── Mobile ── */
+@media(max-width:768px){
+  #sidebar{transform:translateX(-100%);}
+  #sidebar.open{transform:translateX(0);}
+  #overlay.open{display:block;}
+  #main{margin-left:0;}
+  #topbar .hamburger{display:flex;}
+  .cards{grid-template-columns:repeat(2,1fr);}
+  #content{padding:16px;}
+  .card .card-value{font-size:24px;}
+  .item-name{min-width:90px;}
+}
+@media(max-width:420px){
+  .cards{grid-template-columns:1fr 1fr;}
+  .staff-table th:nth-child(3),.staff-table td:nth-child(3){display:none;}
+}
 </style>
 </head>
 <body>
 
-<header>
-  <h1>La Flor Blanca &nbsp;<span>Command Center</span></h1>
-  <span id="last-updated">Loading…</span>
-</header>
+<!-- ── Sidebar ── -->
+<div id="overlay" onclick="closeSidebar()"></div>
+<aside id="sidebar">
+  <div class="logo">
+    <h1>La Flor <span>Blanca</span></h1>
+    <p>Command Center</p>
+  </div>
+  <nav>
+    <a class="active" onclick="showTab('ops',this)">
+      <i data-lucide="layout-dashboard"></i>Ops Dashboard
+    </a>
+    <a onclick="showTab('alerts',this)">
+      <i data-lucide="bell"></i>Alerts
+    </a>
+    <a onclick="showTab('agents',this)">
+      <i data-lucide="bot"></i>Agents
+    </a>
+    <a onclick="showTab('ceo',this)">
+      <i data-lucide="bar-chart-3"></i>CEO Report
+    </a>
+  </nav>
+  <div class="bottom">
+    <p>v2.0 · Issue #11</p>
+  </div>
+</aside>
 
-<div id="breach-banner"></div>
-
-<nav>
-  <button class="active" onclick="showTab('ops', this)">Ops Dashboard</button>
-  <button onclick="showTab('alerts', this)">Alerts</button>
-  <button onclick="showTab('agents', this)">Agents</button>
-  <button onclick="showTab('ceo', this)">CEO Report</button>
-</nav>
-
-<!-- ══ OPS DASHBOARD ══════════════════════════════════════════════════════ -->
-<div id="tab-ops" class="tab-panel active">
-
-  <div class="cards">
-    <div class="card" id="card-labor">
-      <div class="label">Labor %</div>
-      <div class="value" id="labor-pct">—</div>
-      <div class="sub" id="labor-threshold">Target: {{ threshold_pct }}%</div>
+<!-- ── Main ── -->
+<div id="main">
+  <div id="topbar">
+    <div class="left">
+      <button class="hamburger" onclick="toggleSidebar()"><i data-lucide="menu" style="width:20px;height:20px;"></i></button>
+      <div id="live-dot"></div>
+      <span style="font-size:13px;font-weight:600;">Live</span>
     </div>
-    <div class="card blue">
-      <div class="label">Today's Sales</div>
-      <div class="value" id="sales-val">—</div>
-      <div class="sub" id="sales-pace">vs avg —</div>
+    <span id="last-updated" style="font-size:12px;color:var(--muted);">Loading…</span>
+  </div>
+
+  <div id="breach-banner"></div>
+
+  <div id="content">
+
+    <!-- ══ OPS ══ -->
+    <div id="tab-ops" class="tab active">
+      <div class="cards">
+        <div class="card" id="card-labor">
+          <div class="card-label"><i data-lucide="percent"></i>Labor</div>
+          <div class="card-value" id="labor-pct">—</div>
+          <div class="card-sub" id="labor-sub">Target {{ threshold_pct }}%</div>
+        </div>
+        <div class="card accent">
+          <div class="card-label"><i data-lucide="dollar-sign"></i>Sales Today</div>
+          <div class="card-value" id="sales-val">—</div>
+          <div class="card-sub" id="sales-sub">vs avg —</div>
+        </div>
+        <div class="card" id="card-staff" style="--color:var(--accent)">
+          <div class="card-label"><i data-lucide="users"></i>On Clock</div>
+          <div class="card-value" id="staff-count" style="color:var(--text);">—</div>
+          <div class="card-sub" id="labor-cost">Labor cost —</div>
+        </div>
+        <div class="card" id="card-breach">
+          <div class="card-label"><i data-lucide="shield-alert"></i>Status</div>
+          <div class="card-value" id="breach-val" style="font-size:18px;margin-top:4px;">—</div>
+          <div class="card-sub" id="breach-sub"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <h2><i data-lucide="users-round"></i>Staff on Clock</h2>
+        </div>
+        <div class="section-body" style="padding:0 0 4px;">
+          <table class="staff-table">
+            <thead>
+              <tr><th style="padding-left:18px;">Employee</th><th>Hours</th><th>Cost</th><th style="text-align:right;padding-right:18px;">Status</th></tr>
+            </thead>
+            <tbody id="staff-body">
+              <tr><td colspan="4" style="padding:20px 18px;color:var(--muted);">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <h2><i data-lucide="trending-up"></i>8-Week Labor % Trend</h2>
+        </div>
+        <div id="weekly-chart" style="padding:4px 8px 0;"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <h2><i data-lucide="utensils"></i>Today's Items</h2>
+        </div>
+        <div class="section-body" id="items-body">
+          <p style="color:var(--muted);">Loading…</p>
+        </div>
+      </div>
     </div>
-    <div class="card">
-      <div class="label">Staff On Clock</div>
-      <div class="value" id="staff-count">—</div>
-      <div class="sub" id="labor-cost">Labor cost —</div>
+
+    <!-- ══ ALERTS ══ -->
+    <div id="tab-alerts" class="tab">
+      <div class="coming-soon">
+        <div class="icon"><i data-lucide="mail" style="width:40px;height:40px;color:var(--accent);"></i></div>
+        <h3>Alert History — Coming in Issue #8</h3>
+        <p>All labor breach alerts and morning briefings will appear here.<br>Check your email in the meantime.</p>
+      </div>
     </div>
-    <div class="card" id="card-breach">
-      <div class="label">Breach Status</div>
-      <div class="value" id="breach-val">—</div>
-      <div class="sub" id="breach-sub"></div>
+
+    <!-- ══ AGENTS ══ -->
+    <div id="tab-agents" class="tab">
+      <div class="coming-soon">
+        <div class="icon"><i data-lucide="bot" style="width:40px;height:40px;color:var(--accent);"></i></div>
+        <h3>Agent Fleet — Coming in Issue #12</h3>
+        <p>Control and monitor all your AI agents from here.<br>Each agent shows its status, last run, and output.</p>
+      </div>
+      <div class="section" style="margin-top:20px;">
+        <div class="section-header"><h2><i data-lucide="cpu"></i>Fleet Preview</h2></div>
+        <div class="section-body" style="padding:0 0 4px;">
+          <table class="agent-table">
+            <thead><tr><th style="padding-left:18px;">Agent</th><th>Status</th><th>Last Run</th></tr></thead>
+            <tbody>
+              <tr><td style="padding-left:18px;">CEO Orchestrator</td><td><span class="badge badge-idle">Idle</span></td><td style="color:var(--muted);">—</td></tr>
+              <tr><td style="padding-left:18px;">Catering Pipeline</td><td><span class="badge badge-idle">Idle</span></td><td style="color:var(--muted);">—</td></tr>
+              <tr><td style="padding-left:18px;">Viral Trend Spotter</td><td><span class="badge badge-done">Ready</span></td><td style="color:var(--muted);">—</td></tr>
+              <tr><td style="padding-left:18px;">Virtual Brand Builder</td><td><span class="badge badge-soon">Soon</span></td><td style="color:var(--muted);">—</td></tr>
+              <tr><td style="padding-left:18px;">Reputation Manager</td><td><span class="badge badge-idle">Idle</span></td><td style="color:var(--muted);">—</td></tr>
+              <tr><td style="padding-left:18px;">Influencer Radar</td><td><span class="badge badge-idle">Idle</span></td><td style="color:var(--muted);">—</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
-  </div>
 
-  <div class="section">
-    <h2>Staff on Clock</h2>
-    <table id="staff-table">
-      <thead><tr><th>Name</th><th>Hours</th><th>Cost</th></tr></thead>
-      <tbody id="staff-body"><tr><td colspan="3" style="color:var(--muted)">Loading…</td></tr></tbody>
-    </table>
-  </div>
-
-  <div class="section">
-    <h2>8-Week Labor % Trend</h2>
-    <div class="chart-wrap">
-      <canvas id="weekly-chart"></canvas>
+    <!-- ══ CEO ══ -->
+    <div id="tab-ceo" class="tab">
+      <div class="coming-soon">
+        <div class="icon"><i data-lucide="briefcase" style="width:40px;height:40px;color:var(--accent);"></i></div>
+        <h3>CEO Report — Coming in Issue #12</h3>
+        <p>Every Monday the CEO Orchestrator posts its weekly strategy,<br>agent directives, and business decisions here.</p>
+      </div>
     </div>
-  </div>
 
-  <div class="section">
-    <h2>Today's Items</h2>
-    <div class="items-grid" id="items-grid"><span style="color:var(--muted)">Loading…</span></div>
-  </div>
-
-</div>
-
-<!-- ══ ALERTS (Phase 2) ═══════════════════════════════════════════════════ -->
-<div id="tab-alerts" class="tab-panel">
-  <div class="coming-soon">
-    <div class="icon">📬</div>
-    <h3>Alert History — Coming Soon</h3>
-    <p>All labor breach alerts and morning briefings will appear here once Issue #8 ships.<br>Check your email in the meantime.</p>
-  </div>
-</div>
-
-<!-- ══ AGENTS (Phase 3 shell) ════════════════════════════════════════════ -->
-<div id="tab-agents" class="tab-panel">
-  <div class="coming-soon">
-    <div class="icon">🤖</div>
-    <h3>Agent Fleet — Coming in Issue #12</h3>
-    <p>Your AI agents will be visible and controllable from here.<br>Each agent shows its status, last run, and output.</p>
-  </div>
-  <div class="agent-preview">
-    <div class="section">
-      <h2>Agent Fleet (Preview)</h2>
-      <table>
-        <thead><tr><th>Agent</th><th>Status</th><th>Last Run</th></tr></thead>
-        <tbody>
-          <tr><td>CEO Orchestrator</td><td><span class="badge idle">Idle</span></td><td>—</td></tr>
-          <tr><td>Catering Pipeline</td><td><span class="badge idle">Idle</span></td><td>—</td></tr>
-          <tr><td>Viral Trend Spotter</td><td><span class="badge done">Done</span></td><td>—</td></tr>
-          <tr><td>Virtual Brand Builder</td><td><span class="badge soon">Soon</span></td><td>—</td></tr>
-          <tr><td>Reputation Manager</td><td><span class="badge idle">Idle</span></td><td>—</td></tr>
-          <tr><td>Influencer Radar</td><td><span class="badge idle">Idle</span></td><td>—</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-<!-- ══ CEO REPORT (Phase 4) ══════════════════════════════════════════════ -->
-<div id="tab-ceo" class="tab-panel">
-  <div class="coming-soon">
-    <div class="icon">📊</div>
-    <h3>CEO Report — Coming in Issue #12</h3>
-    <p>Every Monday morning the CEO Orchestrator will post its weekly<br>business summary and agent directives here.</p>
-  </div>
-</div>
+  </div><!-- /content -->
+</div><!-- /main -->
 
 <script>
-  const TOKEN = new URLSearchParams(window.location.search).get("token") || "";
-  const api   = path => fetch(path + (TOKEN ? "?token=" + TOKEN : "")).then(r => r.json());
+  lucide.createIcons();
+
+  const TOKEN  = new URLSearchParams(window.location.search).get("token") || "";
+  const apiFetch = p => fetch(p + (TOKEN ? "?token=" + TOKEN : "")).then(r => r.json());
   let weeklyChart = null;
 
-  // ── Tab switching ─────────────────────────────────────────────────────────
-  function showTab(name, btn) {
-    document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
-    document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+  // ── Navigation ────────────────────────────────────────────────────────────
+  function showTab(name, el) {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll("#sidebar nav a").forEach(a => a.classList.remove("active"));
     document.getElementById("tab-" + name).classList.add("active");
-    btn.classList.add("active");
+    el.classList.add("active");
+    closeSidebar();
+  }
+  function toggleSidebar() {
+    document.getElementById("sidebar").classList.toggle("open");
+    document.getElementById("overlay").classList.toggle("open");
+  }
+  function closeSidebar() {
+    document.getElementById("sidebar").classList.remove("open");
+    document.getElementById("overlay").classList.remove("open");
   }
 
-  // ── Live data ─────────────────────────────────────────────────────────────
-  function colorClass(pct, threshold) {
-    if (pct < threshold * 0.85) return "green";
-    if (pct < threshold)        return "orange";
-    return "red";
-  }
-
+  // ── Live ──────────────────────────────────────────────────────────────────
   async function fetchLive() {
     try {
-      const d = await api("/api/live");
+      const d = await apiFetch("/api/live");
 
-      // Labor % card
-      const laborCard = document.getElementById("card-labor");
-      const cls = colorClass(d.labor_pct, d.threshold_pct);
-      laborCard.className = "card " + cls;
-      document.getElementById("labor-pct").textContent = d.labor_pct + "%";
-      document.getElementById("labor-threshold").textContent = "Target: " + d.threshold_pct + "%";
+      // Labor card
+      const lc = document.getElementById("card-labor");
+      const pct = d.labor_pct, thr = d.threshold_pct;
+      const cls = pct >= thr ? "red" : pct >= thr * 0.87 ? "amber" : "green";
+      lc.className = "card " + cls;
+      document.getElementById("labor-pct").textContent = pct + "%";
+      document.getElementById("labor-sub").textContent = "Target " + thr + "%  ·  $" + d.labor_dollars.toFixed(0) + " cost";
 
-      // Sales card
-      document.getElementById("sales-val").textContent = "$" + d.sales_dollars.toLocaleString("en-US", {minimumFractionDigits: 0});
+      // Sales
+      document.getElementById("sales-val").textContent = "$" + (d.sales_dollars).toLocaleString("en-US", {maximumFractionDigits:0});
       if (d.hist_pace_dollars) {
         const diff = ((d.sales_dollars - d.hist_pace_dollars) / d.hist_pace_dollars * 100).toFixed(0);
         const sign = diff >= 0 ? "+" : "";
-        document.getElementById("sales-pace").textContent = "vs avg " + sign + diff + "%";
+        const col  = diff >= 0 ? "var(--green)" : "var(--red)";
+        document.getElementById("sales-sub").innerHTML = `<span style="color:${col}">${sign}${diff}%</span> vs avg $${Math.round(d.hist_pace_dollars).toLocaleString()}`;
+      } else {
+        document.getElementById("sales-sub").textContent = "No historical avg yet";
       }
 
-      // Staff card
+      // Staff
       document.getElementById("staff-count").textContent = d.active_staff;
-      document.getElementById("labor-cost").textContent = "Labor $" + d.labor_dollars.toFixed(2);
+      document.getElementById("labor-cost").textContent = "$" + d.labor_dollars.toFixed(2) + " total labor";
 
-      // Breach card
-      const breachCard = document.getElementById("card-breach");
-      const breachVal  = document.getElementById("breach-val");
-      const breachSub  = document.getElementById("breach-sub");
-      const banner     = document.getElementById("breach-banner");
+      // Breach
+      const bc = document.getElementById("card-breach");
+      const bv = document.getElementById("breach-val");
+      const bs = document.getElementById("breach-sub");
+      const bn = document.getElementById("breach-banner");
       if (d.in_breach) {
-        breachCard.className = "card red";
-        breachVal.textContent = "Stage " + d.alert_stage;
-        breachSub.textContent = d.breach_minutes + " min ongoing";
-        banner.style.display = "block";
-        banner.className = d.alert_stage >= 2 ? "" : "warn";
-        banner.textContent = "⚠ Labor breach active — Stage " + d.alert_stage + " — " + d.breach_minutes + " min";
+        bc.className = "card red";
+        bv.textContent = "⚠ Stage " + d.alert_stage;
+        bv.style.color = "var(--red)";
+        bs.textContent = d.breach_minutes + " min ongoing";
+        bn.className   = d.alert_stage >= 2 ? "active" : "warn active";
+        bn.innerHTML   = `<i data-lucide="alert-triangle" style="width:14px;height:14px;"></i> Labor breach · Stage ${d.alert_stage} · ${d.breach_minutes} min`;
+        lucide.createIcons({nodes: [bn]});
       } else {
-        breachCard.className = "card green";
-        breachVal.textContent = "Clear";
-        breachSub.textContent = "Labor within target";
-        banner.style.display = "none";
+        bc.className = "card green";
+        bv.textContent = "✓ Clear";
+        bv.style.color = "var(--green)";
+        bs.textContent = "Labor within target";
+        bn.className = "";
+        bn.textContent = "";
       }
 
       // Staff table
       const tbody = document.getElementById("staff-body");
-      if (d.staff && d.staff.length > 0) {
-        tbody.innerHTML = d.staff.map(s =>
-          `<tr><td>${s.name}</td><td>${s.hours}h</td><td>$${s.cost.toFixed(2)}</td></tr>`
-        ).join("");
+      if (d.staff && d.staff.length) {
+        tbody.innerHTML = d.staff.map(s => {
+          const init = s.name.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase();
+          return `<tr class="staff-row">
+            <td style="padding-left:18px;">
+              <span class="staff-avatar">${init}</span>${s.name}
+            </td>
+            <td>${s.hours}h</td>
+            <td>$${s.cost.toFixed(2)}</td>
+            <td style="text-align:right;padding-right:18px;">
+              <span class="status-dot"></span><span style="font-size:12px;color:var(--green);">Active</span>
+            </td>
+          </tr>`;
+        }).join("");
       } else {
-        tbody.innerHTML = `<tr><td colspan="3" style="color:var(--muted)">No staff clocked in</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" style="padding:20px 18px;color:var(--muted);">No staff clocked in</td></tr>`;
       }
 
-      // Last updated
       const ts = new Date(d.timestamp);
-      document.getElementById("last-updated").textContent = "Updated " + ts.toLocaleTimeString("en-US", {hour: "2-digit", minute: "2-digit"});
-
-    } catch (e) { console.error("Live fetch failed", e); }
+      document.getElementById("last-updated").textContent = "Updated " + ts.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
+    } catch(e) { console.error("Live error", e); }
   }
 
+  // ── Items ─────────────────────────────────────────────────────────────────
   async function fetchItems() {
     try {
-      const d = await api("/api/items");
-      const grid = document.getElementById("items-grid");
-      if (d.items && d.items.length > 0) {
-        grid.innerHTML = d.items.map(i =>
-          `<div class="item-pill">${i.name}<span class="qty">×${i.qty}</span></div>`
-        ).join("");
-      } else {
-        grid.innerHTML = `<span style="color:var(--muted)">No sales yet today</span>`;
-      }
-    } catch (e) { console.error("Items fetch failed", e); }
+      const d = await apiFetch("/api/items");
+      const body = document.getElementById("items-body");
+      if (!d.items || !d.items.length) { body.innerHTML = `<p style="color:var(--muted);">No sales yet today</p>`; return; }
+      const max = d.items[0].qty;
+      body.innerHTML = d.items.slice(0,10).map(i => `
+        <div class="item-row">
+          <span class="item-name">${i.name}</span>
+          <div class="item-bar-wrap"><div class="item-bar" style="width:${Math.round(i.qty/max*100)}%"></div></div>
+          <span class="item-qty">${i.qty}</span>
+        </div>`).join("");
+    } catch(e) { console.error("Items error", e); }
   }
 
+  // ── Weekly Chart (ApexCharts) ─────────────────────────────────────────────
   async function fetchWeekly() {
     try {
-      const d = await api("/api/weekly");
-      const ctx = document.getElementById("weekly-chart").getContext("2d");
+      const d = await apiFetch("/api/weekly");
+      if (!d.labels || !d.labels.length) return;
 
-      const colors = d.labor_pct.map(v => v > d.threshold ? "rgba(192,57,43,0.75)" : "rgba(39,174,96,0.75)");
+      const colors = d.labor_pct.map(v => v > d.threshold ? "#ef4444" : "#6366f1");
 
-      if (weeklyChart) weeklyChart.destroy();
-      weeklyChart = new Chart(ctx, {
-        type: "bar",
-        data: {
-          labels: d.labels,
-          datasets: [
-            {
-              label: "Labor %",
-              data: d.labor_pct,
-              backgroundColor: colors,
-              borderRadius: 4,
-              order: 2,
-            },
-            {
-              label: `Target (${d.threshold}%)`,
-              data: Array(d.labels.length).fill(d.threshold),
-              type: "line",
-              borderColor: "rgba(192,57,43,0.75)",
-              borderDash: [6, 4],
-              borderWidth: 2,
-              pointRadius: 0,
-              fill: false,
-              tension: 0,
-              order: 1,
-            }
-          ]
-        },
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: { callbacks: { label: ctx => ctx.datasetIndex === 0 ? " " + ctx.raw + "%" : null } }
-          },
-          scales: {
-            x: { grid: { color: "rgba(255,255,255,0.05)" }, ticks: { color: "#8899aa", maxRotation: 45 } },
-            y: {
-              grid: { color: "rgba(255,255,255,0.05)" }, ticks: { color: "#8899aa", callback: v => v + "%" },
-              suggestedMin: 0, suggestedMax: Math.max(50, d.threshold + 15),
-            }
-          }
-        }
-      });
+      const opts = {
+        chart: { type:"bar", height:220, background:"transparent", toolbar:{show:false}, animations:{speed:600} },
+        theme: { mode:"dark" },
+        series: [{ name:"Labor %", data: d.labor_pct }],
+        colors,
+        plotOptions: { bar:{ borderRadius:4, columnWidth:"55%", distributed:true } },
+        dataLabels: { enabled:false },
+        legend: { show:false },
+        xaxis: { categories: d.labels, labels:{ style:{colors:"#4b5675", fontSize:"11px"}, rotate:-35 }, axisBorder:{show:false}, axisTicks:{show:false} },
+        yaxis: { labels:{ style:{colors:"#4b5675", fontSize:"11px"}, formatter: v => v+"%" }, tickAmount:4 },
+        grid: { borderColor:"rgba(255,255,255,0.05)", strokeDashArray:3 },
+        annotations: { yaxis:[{ y: d.threshold, borderColor:"rgba(239,68,68,0.6)", strokeDashArray:5, borderWidth:2, label:{ text: d.threshold+"% target", style:{background:"transparent", color:"rgba(239,68,68,0.7)", fontSize:"11px", fontFamily:"Inter"}, position:"left", offsetX:8 } }] },
+        tooltip: { theme:"dark", y:{ formatter: v => v+"%" } },
+      };
 
-    } catch (e) { console.error("Weekly fetch failed", e); }
+      if (weeklyChart) { weeklyChart.destroy(); }
+      weeklyChart = new ApexCharts(document.getElementById("weekly-chart"), opts);
+      weeklyChart.render();
+    } catch(e) { console.error("Weekly error", e); }
   }
 
-  // ── Boot + refresh ────────────────────────────────────────────────────────
-  fetchLive();
-  fetchItems();
-  fetchWeekly();
-  setInterval(fetchLive,  60_000);
-  setInterval(fetchItems, 60_000);
+  // ── Boot ──────────────────────────────────────────────────────────────────
+  fetchLive(); fetchItems(); fetchWeekly();
+  setInterval(fetchLive,  60000);
+  setInterval(fetchItems, 60000);
 </script>
 </body>
 </html>
