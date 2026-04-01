@@ -221,6 +221,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
         <div class="section-header">
           <h2><i data-lucide="trending-up"></i>8-Week Labor % Trend</h2>
         </div>
+        <div id="weekly-insights" style="display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px 6px;min-height:36px;"></div>
         <div id="weekly-chart" style="padding:4px 8px 0;"></div>
       </div>
 
@@ -401,15 +402,55 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
       const d = await apiFetch("/api/weekly");
       if (!d.labels || !d.labels.length) return;
 
-      const colors = d.labor_pct.map(v => v > d.threshold ? "#ef4444" : "#6366f1");
+      const pct = d.labor_pct;
+      const n   = pct.length;
+
+      // ── Compute insights ──────────────────────────────────────────────────
+      const overCount  = pct.filter(v => v > d.threshold).length;
+      const maxVal     = Math.max(...pct);
+      const minVal     = Math.min(...pct);
+      const worstLabel = d.labels[pct.indexOf(maxVal)];
+      const bestLabel  = d.labels[pct.indexOf(minVal)];
+
+      // Trend: avg of older half vs newer half
+      const half    = Math.floor(n / 2);
+      const avgOld  = pct.slice(0, half).reduce((a,b)=>a+b,0) / half;
+      const avgNew  = pct.slice(half).reduce((a,b)=>a+b,0) / (n - half);
+      const delta   = avgNew - avgOld;
+      const trendTxt   = Math.abs(delta) < 0.5 ? "→ Holding steady"
+                       : delta < 0 ? `↓ Down ${Math.abs(delta).toFixed(1)}% — improving`
+                       :             `↑ Up ${delta.toFixed(1)}% — trending over`;
+      const trendColor = Math.abs(delta) < 0.5 ? "var(--muted)"
+                       : delta < 0 ? "var(--green)" : "var(--red)";
+
+      // ── Render insight chips ──────────────────────────────────────────────
+      const chip = (icon, text, color) =>
+        `<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;
+          background:var(--surface-2);border:1px solid var(--border);font-size:12px;color:${color};">
+          ${icon}&nbsp;${text}</span>`;
+
+      const overColor = overCount === 0 ? "var(--green)" : overCount <= 2 ? "var(--amber)" : "var(--red)";
+      document.getElementById("weekly-insights").innerHTML =
+        chip("🔴", `${overCount}/${n} days over ${d.threshold}% target`, overColor) +
+        chip("📈", `Worst: ${worstLabel} (${maxVal}%)`, "var(--red)") +
+        chip("✅", `Best: ${bestLabel} (${minVal}%)`, "var(--green)") +
+        chip("📊", trendTxt, trendColor);
+
+      // ── Chart ─────────────────────────────────────────────────────────────
+      const colors = pct.map(v => v > d.threshold ? "#ef4444" : "#6366f1");
 
       const opts = {
         chart: { type:"bar", height:220, background:"transparent", toolbar:{show:false}, animations:{speed:600} },
         theme: { mode:"dark" },
-        series: [{ name:"Labor %", data: d.labor_pct }],
+        series: [{ name:"Labor %", data: pct }],
         colors,
         plotOptions: { bar:{ borderRadius:4, columnWidth:"55%", distributed:true } },
-        dataLabels: { enabled:false },
+        dataLabels: {
+          enabled: true,
+          formatter: v => v + "%",
+          style: { fontSize:"11px", fontFamily:"Inter", fontWeight:600, colors:["#e2e8f0"] },
+          offsetY: -4,
+        },
         legend: { show:false },
         xaxis: { categories: d.labels, labels:{ style:{colors:"#4b5675", fontSize:"11px"}, rotate:-35 }, axisBorder:{show:false}, axisTicks:{show:false} },
         yaxis: { labels:{ style:{colors:"#4b5675", fontSize:"11px"}, formatter: v => v+"%" }, tickAmount:4 },
