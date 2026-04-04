@@ -44,21 +44,23 @@ class DailyBriefing:
     # ── Data assembly ─────────────────────────────────────────────────────────
 
     def _build_context(self) -> dict:
-        now = datetime.now(self._config.tz)
+        from datetime import timedelta
+        now       = datetime.now(self._config.tz)
+        yesterday = now - timedelta(days=1)
         return {
-            "now":           now,
-            "day_name":      self._config.DAY_NAMES.get(now.weekday(), now.strftime("%A")),
-            "yesterday":     self._history.get_yesterday_summary(),
-            "last_week_sales": self._history.get_same_weekday_last_week_sales(),
-            "weekly_history":  self._square.get_weekly_history(weeks=6),
-            "weather_today":   get_weather_today(self._config),
+            "now":               now,
+            "day_name":          self._config.DAY_NAMES.get(now.weekday(), now.strftime("%A")),
+            "yesterday_day_name": self._config.DAY_NAMES.get(yesterday.weekday(), yesterday.strftime("%A")),
+            "yesterday":         self._history.get_yesterday_summary(),
+            "last_week_sales":   self._history.get_same_weekday_last_week_sales(),
+            "weekly_history":    self._square.get_weekly_history(weeks=6),
+            "weather_today":     get_weather_today(self._config),
             "weather_yesterday": get_weather_historical(
-                self._config,
-                (now.replace(day=now.day - 1) if now.day > 1 else now).strftime("%Y-%m-%d")
+                self._config, yesterday.strftime("%Y-%m-%d")
             ),
-            "payday":        get_payday_context(self._config),
-            "holidays":      get_upcoming_holidays(self._config, days=10),
-            "events":        get_upcoming_latino_events(self._config, days=7),
+            "payday":    get_payday_context(self._config),
+            "holidays":  get_upcoming_holidays(self._config, days=10),
+            "events":    get_upcoming_latino_events(self._config, days=7),
         }
 
     # ── Email body ────────────────────────────────────────────────────────────
@@ -80,7 +82,7 @@ class DailyBriefing:
 
         # Yesterday recap
         if yest:
-            lines += ["── YESTERDAY ──────────────────────────────", ""]
+            lines += [f"── YESTERDAY — {yest['date'].upper()} ─────────────────────", ""]
             vs = ""
             if last_week and last_week > 0 and yest["sales_cents"] > 0:
                 diff = (yest["sales_cents"] - last_week) / last_week * 100
@@ -127,36 +129,37 @@ class DailyBriefing:
         if not self._client:
             return ""
 
-        yest      = ctx["yesterday"]
-        payday    = ctx["payday"]
-        weather   = ctx["weather_today"]
-        holidays  = ctx["holidays"]
-        events    = ctx["events"]
-        last_week = ctx["last_week_sales"]
-        day_name  = ctx["day_name"]
+        yest           = ctx["yesterday"]
+        payday         = ctx["payday"]
+        weather        = ctx["weather_today"]
+        holidays       = ctx["holidays"]
+        events         = ctx["events"]
+        last_week      = ctx["last_week_sales"]
+        day_name       = ctx["day_name"]
+        yest_day_name  = ctx.get("yesterday_day_name", day_name)
 
-        # Build weekly pattern summary from history
+        # Build weekly pattern summary from history — compare same weekday as YESTERDAY
         daily_sales, daily_labor = ctx["weekly_history"]
         pattern_lines = ""
-        if daily_sales:
+        if daily_sales and yest:
             same_day_totals = []
             for date_str, sales in daily_sales.items():
                 try:
                     from datetime import datetime as dt
-                    if dt.strptime(date_str, "%Y-%m-%d").weekday() == ctx["now"].weekday():
+                    if dt.strptime(date_str, "%Y-%m-%d").weekday() == yest["weekday"]:
                         same_day_totals.append(sales)
                 except ValueError:
                     pass
             if same_day_totals:
                 avg = sum(same_day_totals) / len(same_day_totals)
-                pattern_lines = f"Your last {len(same_day_totals)} {day_name}s averaged ${avg/100:,.0f} in sales."
+                pattern_lines = f"Your last {len(same_day_totals)} {yest_day_name}s averaged ${avg/100:,.0f} in sales."
 
         yest_block = ""
         if yest:
             vs = ""
             if last_week and last_week > 0 and yest["sales_cents"] > 0:
                 diff = (yest["sales_cents"] - last_week) / last_week * 100
-                vs = f" ({abs(diff):.0f}% {'above' if diff >= 0 else 'below'} last {day_name})"
+                vs = f" ({abs(diff):.0f}% {'above' if diff >= 0 else 'below'} last {yest_day_name})"
             yest_block = (
                 f"Yesterday: ${yest['sales_cents']/100:,.0f} in sales{vs}, "
                 f"{yest['labor_pct']:.1f}% labor. "
