@@ -175,29 +175,80 @@ class DailyBriefing:
         holiday_block = f"Upcoming Salvadoran holidays: {', '.join(h['name'] for h in holidays[:2])}." if holidays else ""
         event_block   = f"Latino events nearby this week: {', '.join(e['name'] for e in events[:2])}." if events else ""
 
+        # ── Rolling labor trend (last 6 days with valid data) ─────────────────
+        recent_labor_pcts = [
+            labor / sales * 100
+            for date_str, sales in daily_sales.items()
+            for labor in [daily_labor.get(date_str, 0)]
+            if sales > 0 and labor > 0
+        ][-6:]
+        avg_labor = sum(recent_labor_pcts) / len(recent_labor_pcts) if recent_labor_pcts else 0
+        labor_trend_block = (
+            f"Recent labor avg (last {len(recent_labor_pcts)} days): {avg_labor:.1f}%"
+            f" vs {self._config.labor_threshold * 100:.0f}% target."
+            if recent_labor_pcts else ""
+        )
+
+        # ── Breach flag for yesterday ─────────────────────────────────────────
+        threshold_pct = self._config.labor_threshold * 100
+        breach_note = (
+            f"NOTE: Yesterday's labor was OVER threshold at {yest['labor_pct']:.1f}%."
+            if yest and yest["labor_pct"] > threshold_pct else ""
+        )
+
+        # ── Labor breach streak for today's weekday ───────────────────────────
+        streak_block = ""
+        if daily_sales and daily_labor:
+            today_wd = ctx["now"].weekday()
+            from datetime import datetime as _dt
+            breach_hits, total_hits = 0, 0
+            for date_str, sales in sorted(daily_sales.items(), reverse=True):
+                if sales <= 0:
+                    continue
+                labor = daily_labor.get(date_str, 0)
+                if labor <= 0:
+                    continue
+                try:
+                    if _dt.strptime(date_str, "%Y-%m-%d").weekday() == today_wd:
+                        total_hits += 1
+                        if labor / sales * 100 > threshold_pct:
+                            breach_hits += 1
+                        if total_hits >= 4:
+                            break
+                except ValueError:
+                    pass
+            if total_hits >= 3 and breach_hits >= 3:
+                streak_block = (
+                    f"PATTERN: Labor has breached threshold {breach_hits} of the last "
+                    f"{total_hits} {day_name}s — this is a schedule problem, not a today problem."
+                )
+
         prompt = f"""You are a veteran restaurant operations advisor for La Flor Blanca, a lean Salvadoran restaurant in Los Angeles run by Alex.
 
-It is {day_name} morning. Write Alex's daily briefing — a tight, operator-level read on yesterday and today. Max 200 words.
+It is {day_name} morning. Give Alex the one thing he needs to act on before he walks in the door — one clear decision and the specific reason why TODAY's context makes it the right call. Max 250 words.
 
 DATA:
 {yest_block}
 {pattern_lines}
+{labor_trend_block}
+{breach_note}
+{streak_block}
 {weather_block}
 Pay cycle: {payday['label']}
 {holiday_block}
 {event_block}
 
-Cover three things in order:
-1. One honest sentence on yesterday — good, bad, or average, and why based on the data.
-2. What today looks like given weather, pay cycle, and any events — and the one staffing or sales call that matters most because of it.
-3. If there's a pattern worth flagging (same day keeps running soft, labor creeping up, etc.) call it out plainly.
+PRIORITY:
+- If yesterday breached on labor, lead with what to do differently today — a specific staffing or operational call, not a general reminder to watch labor.
+- If yesterday was fine on labor, focus on the sales opportunity: what today's signals (weather, pay cycle, events) mean for volume, and the one action Alex should take before noon.
+- If there is a multi-week labor trend creeping up on the same weekday, call it plainly and say what specifically to change on the schedule.
 
 Write like you're texting Alex before he gets to the restaurant — direct, no corporate language, no bullet points, no markdown, no asterisks, plain text only."""
 
         try:
             response = self._client.messages.create(
                 model=self.MODEL,
-                max_tokens=300,
+                max_tokens=450,
                 messages=[{"role": "user", "content": prompt}],
             )
             return response.content[0].text.strip()

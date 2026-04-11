@@ -53,9 +53,21 @@ class AlertBuilder:
             new_pct = (labor_cents - cut["cost_cents"]) / sales_cents * 100
             lines += [
                 "",
-                f"ACTION: Send {cut['name']} home now.",
-                f"Saves ~${cut['cost_cents']/100:.2f}/hr, drops labor to ~{new_pct:.1f}%",
+                f"IF {cut['name'].upper()} LEFT NOW: saves ~${cut['cost_cents']/100:.2f}/hr, "
+                f"drops labor to ~{new_pct:.1f}%",
             ]
+
+        # ── Projected labor % by close ────────────────────────────────────────
+        open_hour, open_min = map(int, self._config.BUSINESS_HOURS[now.weekday()][0].split(":"))
+        close_hour, close_min = map(int, self._config.BUSINESS_HOURS[now.weekday()][1].split(":"))
+        open_dt  = now.replace(hour=open_hour, minute=open_min, second=0, microsecond=0)
+        close_dt = now.replace(hour=close_hour, minute=close_min, second=0, microsecond=0)
+        elapsed_hours = max((now - open_dt).total_seconds() / 3600, 0.1)
+        total_hours   = (close_dt - open_dt).total_seconds() / 3600
+        if elapsed_hours > 0 and total_hours > elapsed_hours:
+            projected_sales = sales_cents * (total_hours / elapsed_hours)
+            projected_pct   = labor_cents / projected_sales * 100
+            lines.append(f"Projected by close: ~{projected_pct:.1f}% labor if pace holds")
 
         # ── Sales pace + items ────────────────────────────────────────────────
         lines += ["", f"SALES PACE - {time_str}"]
